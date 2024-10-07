@@ -18,3 +18,6 @@ def register(request):
 
 def home(request):
     return render(request, 'home.html') 
+
+def onboarding(request):
+    return render(request, 'onboarding.html') 
