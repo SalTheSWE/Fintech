@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Our Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            margin: 50px;
+            text-align: center;
+        }
+        .onboarding-step {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Our Service!</h1>
+        <p>Let us guide you through your first steps.</p>
+
+        <div class="onboarding-step">
+            <h2>Step 1: Profile Setup</h2>
+            <p>Tell us more about yourself to customize your experience.</p>
+        </div>
+
+        <div class="onboarding-step">
+            <h2>Step 2: Explore Features</h2>
+            <p>Check out the awesome features we offer!</p>
+        </div>
+
+        <div class="onboarding-step">
+            <h2>Step 3: Get Started</h2>
+            <p>You're ready to go! Let's begin your journey.</p>
+        </div>
+
+        <a href="{% url 'home' %}" class="btn">Get Started</a>
+    </div>
+</body>
+</html>
