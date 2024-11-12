@@ -1,44 +1,45 @@
-from django.shortcuts import render
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
-from .forms import RegistrationForm
-from rest_framework import viewsets
-from .models import Transaction
-from .serializers import TransactionSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets
-from .models import Account
-from .serializers import AccountSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets
-from .models import BudgetGoal, SavingsGoal
-from .serializers import BudgetGoalSerializer, SavingsGoalSerializer
-from rest_framework.permissions import IsAuthenticated
-
 from django.contrib.auth.hashers import make_password, check_password
-from rest_framework import status
+from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .models import User
-from .serializers import UserSerializer
+from rest_framework.permissions import IsAuthenticated
+
+from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
+from .serializers import (
+    UserSerializer, 
+    TransactionSerializer, 
+    AccountSerializer, 
+    BudgetGoalSerializer, 
+    SavingsGoalSerializer
+)
+
 
 @api_view(['POST'])
 def register_user(request):
     """Register a new user."""
     phone_num = request.data.get('phone_num')
     password = request.data.get('password')
-
+    name = request.data.get("name")
     if not phone_num or not password:
         return Response({"error": "Phone number and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if user already exists
+    if User.objects.filter(phone_num=phone_num).exists():
+        return Response({"error": "User with this phone number already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Hash password
     hashed_password = make_password(password)
     
     # Create user
-    user = User(phone_num=phone_num, password=hashed_password)
+    user = User(phone_num=phone_num, password=hashed_password, name=name)
     user.save()
 
     return Response({"message": "User registered successfully."}, status=status.HTTP_201_CREATED)
+
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
 
 @api_view(['POST'])
 def login_user(request):
@@ -52,9 +53,11 @@ def login_user(request):
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if check_password(password, user.password):
+        # Create or fetch the token for the user
         return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
     else:
         return Response({"error": "Invalid password."}, status=status.HTTP_400_BAD_REQUEST)
+
     
 class TransactionViewSet(viewsets.ModelViewSet):
     """CRUD for transactions."""
