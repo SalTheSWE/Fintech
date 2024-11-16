@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
+from .models import Message,ChatSession
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -24,6 +25,19 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['user', 'date', 'amount', 'is_expense', 'seller_name', "income_category", "expense_category", "account"]
+    def validate(self, data):
+        """
+        Check that the account belongs to the same user as the transaction.
+        """
+        account = data.get('account')
+        user = data.get('user')
+
+        # If no account or user is provided, we can't perform the validation
+        if account and user:
+            if account.user != user:
+                raise serializers.ValidationError("You can only make transactions on your own accounts.")
+
+        return data   
 
     def create(self, validated_data):
         # Associate the transaction with the authenticated user
@@ -72,3 +86,41 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
         user = self.context['request'].user  # Get the authenticated user
         validated_data['user'] = user  # Set the user on the savings goal
         return super().create(validated_data)
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['id', 'chat_session', 'sender', 'content', 'is_user_message', 'timestamp']
+        read_only_fields = ['id', 'timestamp']
+
+
+class ChatSessionSerializer(serializers.ModelSerializer):
+    messages = MessageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ChatSession
+        fields = ['id', 'user', 'messages']
+        read_only_fields = ['id', 'user']
+
+
+
+
+class SendMessageSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+    def validate_message(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Message cannot be empty.")
+        return value
+    
+
+
+class CreateChatSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatSession
+        fields = ['id', 'user']
+
+    def create(self, validated_data):
+        return ChatSession.objects.create(**validated_data)
+

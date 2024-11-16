@@ -34,13 +34,14 @@ AUTH_USER_MODEL = 'myapp.User'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    "myapp",
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "myapp",
-    "channels"
+    "channels",
+    "django_extensions"
  
 ]
 

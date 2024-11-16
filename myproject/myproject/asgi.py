@@ -12,8 +12,9 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-from django.urls import path
-from myapp import consumers, websocket_urlpatterns
+from django.urls import path, re_path
+from myapp import consumers
+from myapp.routing import websocket_urlpatterns
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 
@@ -21,7 +22,7 @@ application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
         URLRouter([
-            websocket_urlpatterns,
+            re_path(r'ws/chat/(?P<session_id>\w+)/$', consumers.ChatConsumer.as_asgi()),
             path('ws/chat/<str:session_id>/', consumers.ChatConsumer.as_asgi()),
         ])
     ),

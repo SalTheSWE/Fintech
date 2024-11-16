@@ -1,12 +1,16 @@
 from django.test import TestCase
 from rest_framework.authtoken.models import Token
-
-from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth.hashers import make_password
 from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
+import json
+from channels.testing import WebsocketCommunicator
+from channels.layers import get_channel_layer
+from myproject.asgi import application
+from myapp.models import ChatSession, Message
+
 
 # Sample test for User registration and login
 class UserApiTest(TestCase):
@@ -171,4 +175,58 @@ class TestPermissions(TestCase):
         url = reverse('transaction-list')  # Example URL
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+
+# tests for chat function 
+class ChatConsumerTest(TestCase):
+    def setUp(self):
+        # Create a test user for WebSocket communication
+        self.user = User.objects.create(phone_num='123456789', password=make_password('password'), name='Test User')
+        self.session = ChatSession.objects.create(user=self.user)
+        self.chat_session_id = self.session.id
+
+    async def test_websocket_connection(self):
+        # Establish WebSocket connection using WebsocketCommunicator
+        communicator = WebsocketCommunicator(application, f"/ws/chat/{self.chat_session_id}/")
+        connected, subprotocol = await communicator.connect()
+
+        # Ensure the WebSocket connection is established
+        self.assertTrue(connected)
+
+        # Receive the initial message from the WebSocket (welcome message or prompt)
+        response = await communicator.receive_json_from()
+        self.assertEqual(response['message'], 'Welcome to the AI chatbot. How can I assist you?')
+
+        # Send a message to the WebSocket (simulating user message)
+        await communicator.send_json_to({'message': 'Hello AI'})
+
+        # Receive the response from the AI
+        response = await communicator.receive_json_from()
+        self.assertTrue(response['message'].startswith('AI Response: You said'))
+
+        # Optionally, check that the message was stored in the database
+        user_message = Message.objects.get(sender='user', content='Hello AI')
+        ai_message = Message.objects.get(sender='ai', content='AI Response: You said \'Hello AI\'')
+
+        self.assertIsNotNone(user_message)
+        self.assertIsNotNone(ai_message)
+
+        # Close the WebSocket connection
+        await communicator.disconnect()
+
+    async def test_websocket_disconnect(self):
+        # Establish WebSocket connection using WebsocketCommunicator
+        communicator = WebsocketCommunicator(application, f"/ws/chat/{self.chat_session_id}/")
+        connected, subprotocol = await communicator.connect()
+
+        # Ensure the WebSocket connection is established
+        self.assertTrue(connected)
+
+        # Disconnect the WebSocket and verify no errors
+        await communicator.disconnect()
+
+        # Optionally, check the session status
+        session = ChatSession.objects.get(id=self.chat_session_id)
+        self.assertIsNotNone(session.ended_at)  # Assuming you are updating the `ended_at` field on disconnect
 

@@ -1,3 +1,5 @@
+from django.dispatch import receiver
+from django.forms import ValidationError
 from django.utils import timezone 
 from django.db import models
 from django.core.validators import MinValueValidator
@@ -5,8 +7,10 @@ from django.contrib.auth.models import User  # Assuming you're using the default
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.auth.models import BaseUserManager
+from django.contrib.auth import get_user_model
 from django.db import models
-
+from django.db.models import Sum
+from django.db.models.signals import post_save, post_delete
 class CustomUserManager(BaseUserManager):
     def create_user(self, phone_num, password=None, **extra_fields):
         if not phone_num:
@@ -57,7 +61,7 @@ class UserSettings(models.Model):
     )
     
     def __str__(self):
-        return f"{self.user.username}'s Settings"
+        return f"{self.user.name}'s Settings"
 
 class Account(models.Model):
     ACCOUNT_TYPE_CHOICES = [
@@ -82,6 +86,8 @@ class Transaction(models.Model):
     is_expense = models.BooleanField(default=True)  # Default is true (expense)
     seller_name = models.CharField(max_length=128)  # Corrected typo in max_length
     account = models.ForeignKey('Account', on_delete=models.CASCADE, related_name="transactions")  # Separate ForeignKey to Account
+
+    
 
     CURRENCY_CHOICES = [
         ('USD', 'US Dollar'),
@@ -130,6 +136,7 @@ class Transaction(models.Model):
 
     def save(self, *args, **kwargs):
         # Enforce only one category field is set based on transaction type
+        
         if self.is_expense:
             self.income_category = None
             if not self.expense_category:
@@ -138,6 +145,9 @@ class Transaction(models.Model):
             self.expense_category = None
             if not self.income_category:
                 raise ValueError("Income category must be set for income transactions.")
+        if self.account.user != self.user:
+            raise ValidationError("You can only make transactions on your own accounts.")
+
         
         super().save(*args, **kwargs)
 
@@ -146,7 +156,33 @@ class Transaction(models.Model):
         return f"{transaction_type} of {self.amount} by {self.seller_name} on {self.date}"
 
 
+# Signals to update balances after a transaction
+@receiver(post_save, sender=Transaction)
+def update_balances_on_save(sender, instance, created, **kwargs):
+    account = instance.account
+    user = instance.user
 
+    
+        # Add amount to account and user balance if income, subtract if expense
+    change = instance.amount if not instance.is_expense else -instance.amount
+    account.balance += change
+    account.save()
+    user.balance = Account.objects.filter(user=instance.user).aggregate(Sum('balance'))['balance__sum'] or 0
+    user.save()
+
+@receiver(post_delete, sender=Transaction)
+def update_balances_on_delete(sender, instance, **kwargs):
+    account = instance.account
+    user = instance.user
+
+    # Reverse the transaction impact on balance upon deletion
+    change = -instance.amount if not instance.is_expense else instance.amount
+    account.balance += change
+    user_balance = Account.objects.filter(user=instance.user).aggregate(sum('balance'))['balance__sum'] or 0
+    user.balance = user_balance
+    
+    account.save()
+    user.save()
     
 # Base financial goal model
 class FinancialGoal(models.Model):

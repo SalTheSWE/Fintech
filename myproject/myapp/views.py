@@ -5,7 +5,18 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from .models import Message
+from .serializers import MessageSerializer
 
+from rest_framework.generics import ListAPIView
+from .serializers import MessageSerializer
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .models import ChatSession
+from .serializers import ChatSessionSerializer
 from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
 from .serializers import (
     UserSerializer, 
@@ -111,3 +122,49 @@ class SavingsGoalViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+
+
+class ChatSessionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Check if a chat session already exists for the user
+        chat_session, created = ChatSession.objects.get_or_create(user=request.user)
+        serializer = ChatSessionSerializer(chat_session)
+        return Response(serializer.data)
+    
+class SendMessageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        chat_session = ChatSession.objects.get(id=session_id, user=request.user)
+        message_content = request.data.get("message")
+
+        # Save the user's message to the database
+        user_message = Message.objects.create(
+            chat_session=chat_session,
+            sender='user',
+            content=message_content,
+            is_user_message=True
+        )
+        serializer = MessageSerializer(user_message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+class ChatHistoryView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        session_id = self.kwargs['session_id']
+        return Message.objects.filter(chat_session__id=session_id, chat_session__user=self.request.user).order_by('-timestamp')
+    
+class AIResponseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        user_message = request.data.get("message")
+        ai_response = f"AI Response: You said '{user_message}'"
+        return Response({"response": ai_response})
