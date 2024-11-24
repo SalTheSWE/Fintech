@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
+from .models import User, Transaction, Account, BudgetGoal, SavingsGoal, UserSettings
 from .models import Message,ChatSession
 
 class UserSerializer(serializers.ModelSerializer):
@@ -18,6 +18,22 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+class UserSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSettings
+        fields = ['id', 'user', 'dark_mode', 'language', 'currency']
+        read_only_fields = ['user']  # Prevent the user field from being updated directly
+
+    # Optional validation for `language` and `currency` fields (choices are already enforced by the model)
+    def validate_language(self, value):
+        if value not in dict(UserSettings.LANGUAGE_CHOICES):
+            raise serializers.ValidationError("Invalid language choice.")
+        return value
+
+    def validate_currency(self, value):
+        if value not in dict(UserSettings.CURRENCY_CHOICES):
+            raise serializers.ValidationError("Invalid currency choice.")
+        return value
 
 class TransactionSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)

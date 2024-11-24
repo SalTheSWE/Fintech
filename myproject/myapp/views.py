@@ -8,7 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from .models import Message
 from .serializers import MessageSerializer
-
+from rest_framework import generics, permissions
+from .models import UserSettings
+from .serializers import UserSettingsSerializer
 from rest_framework.generics import ListAPIView
 from .serializers import MessageSerializer
 
@@ -68,7 +70,23 @@ def login_user(request):
         return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
     else:
         return Response({"error": "Invalid password."}, status=status.HTTP_400_BAD_REQUEST)
+    
 
+    
+class UserSettingsDetailView(generics.RetrieveUpdateAPIView):
+    """
+    API endpoint for retrieving and updating user settings.
+    """
+    serializer_class = UserSettingsSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Ensure users can only access their own settings
+        return UserSettings.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        # Attach the authenticated user to the update
+        serializer.save(user=self.request.user)
     
 class TransactionViewSet(viewsets.ModelViewSet):
     """CRUD for transactions."""
