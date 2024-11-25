@@ -98,7 +98,16 @@ class AccountApiTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-
+class usersettingsapitest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create(phone_num='123456789', password=make_password('password'), name='Test User')
+        self.client.force_authenticate(user=self.user)
+        self.user_data = { "dark_mode": False, "user": self.user.id , "language": "en", "currency": "USD"}
+    def test_update_settings(self):
+        url = reverse('usersettings-list')
+        response = self.client.post(url, self.user_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 # Test for Budget Goal view (CRUD operations)
 class BudgetGoalApiTest(TestCase):
     def setUp(self):

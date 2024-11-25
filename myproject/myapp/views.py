@@ -1,32 +1,24 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.hashers import make_password, check_password
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from .models import Message
-from .serializers import MessageSerializer
-from rest_framework import generics, permissions
-from .models import UserSettings
-from .serializers import UserSettingsSerializer
-from rest_framework.generics import ListAPIView
-from .serializers import MessageSerializer
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import ChatSession
-from .serializers import ChatSessionSerializer
-from .models import User, Transaction, Account, BudgetGoal, SavingsGoal
+from .models import Message, UserSettings, ChatSession, User, Transaction, Account, BudgetGoal, SavingsGoal
 from .serializers import (
-    UserSerializer, 
-    TransactionSerializer, 
-    AccountSerializer, 
-    BudgetGoalSerializer, 
+    MessageSerializer,
+    UserSettingsSerializer,
+    ChatSessionSerializer,
+    UserSerializer,
+    TransactionSerializer,
+    AccountSerializer,
+    BudgetGoalSerializer,
     SavingsGoalSerializer
 )
+from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
+from rest_framework.authtoken.models import Token
 
 
 @api_view(['POST'])
@@ -73,19 +65,22 @@ def login_user(request):
     
 
     
-class UserSettingsDetailView(generics.RetrieveUpdateAPIView):
-    """
-    API endpoint for retrieving and updating user settings.
-    """
+class UserSettingsViewSet(viewsets.ModelViewSet):
+    """CRUD for user settings."""
+    queryset = UserSettings.objects.all()
     serializer_class = UserSettingsSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         # Ensure users can only access their own settings
         return UserSettings.objects.filter(user=self.request.user)
 
+    def perform_create(self, serializer):
+        # Associate the user settings with the logged-in user
+        serializer.save(user=self.request.user)
+
     def perform_update(self, serializer):
-        # Attach the authenticated user to the update
+        # Ensure the user is updating their own settings
         serializer.save(user=self.request.user)
     
 class TransactionViewSet(viewsets.ModelViewSet):

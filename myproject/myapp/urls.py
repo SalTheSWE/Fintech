@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import login_user, register_user, TransactionViewSet, AccountViewSet, BudgetGoalViewSet, SavingsGoalViewSet
+from .views import UserSettingsViewSet, login_user, register_user, TransactionViewSet, AccountViewSet, BudgetGoalViewSet, SavingsGoalViewSet
 from .views import ChatSessionView, SendMessageView, ChatHistoryView, AIResponseView
 
 from drf_yasg.views import get_schema_view
@@ -26,6 +26,7 @@ router.register(r'transactions', TransactionViewSet)
 router.register(r'accounts', AccountViewSet)
 router.register(r'budget-goals', BudgetGoalViewSet)
 router.register(r'savings-goals', SavingsGoalViewSet)
+router.register(r'usersettings', UserSettingsViewSet)
 
 # Define the urlpatterns correctly
 urlpatterns = [
